@@ -1,0 +1,58 @@
+name: Dotnet 8 Tests (Collector)
+description: Run unit tests with XPlat Code Coverage and HTML report generation
+inputs:
+  unit_test_folder:
+    description: Unit test folder
+    required: true
+  coverage_exclusions:
+    description: ExcludeByAttribute values
+    required: false
+    default: DebuggerNonUserCodeAttribute
+  coverage_exclude_filter:
+    description: Additional coverlet filter (Exclude property)
+    required: false
+  dotnet_build_path:
+    description: Optional solution or project path for restore
+    required: false
+  dotnet_version:
+    description: Dotnet SDK version
+    required: false
+    default: '8.0.x'
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet_version }}
+        cache: true
+    - name: Install tools (Ubuntu only)
+      shell: bash
+      run: |
+        dotnet tool install -g dotnet-reportgenerator-globaltool
+        sudo apt-get update
+        sudo apt-get install -y bc libxml2-utils
+    - name: Restore
+      shell: bash
+      run: dotnet restore ${{ inputs.dotnet_build_path }}
+    - name: Unit tests (collector)
+      shell: bash
+      env:
+        LOG_FOLDER: ${{ github.workspace }}/TestResults
+        UNIT_TEST_FOLDER: ${{ inputs.unit_test_folder }}
+        COV_EXCLUSIONS: ${{ inputs.coverage_exclusions }}
+        COV_EXCLUDE_FILTER: ${{ inputs.coverage_exclude_filter }}
+      run: |
+        set -euo pipefail
+        export PATH="$PATH:$HOME/.dotnet/tools"
+        mkdir -p "$LOG_FOLDER"
+        dotnet test ./$UNIT_TEST_FOLDER --no-build --configuration Release \
+          --logger "junit;LogFilePath=$LOG_FOLDER/UnitTestResults.xml" \
+          --collect:"XPlat Code Coverage" \
+          --results-directory "$LOG_FOLDER/" \
+          /p:ExcludeByAttribute="$COV_EXCLUSIONS" \
+          ${COV_EXCLUDE_FILTER:+/p:Exclude="$COV_EXCLUDE_FILTER"}
+        COVERAGE_FILE=$(find . -name coverage.cobertura.xml | head -n 1)
+        reportgenerator -reports:$COVERAGE_FILE -targetdir:$LOG_FOLDER/coverage -reporttypes:HTML
+        RATE=$(xmllint --xpath 'string(//coverage/@line-rate)' "$COVERAGE_FILE")
+        echo "COVERAGE $(echo "scale=2; ($RATE*100)/1" | bc)"

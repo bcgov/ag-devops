@@ -1,0 +1,30 @@
+name: Dotnet 8 Dependencies
+description: Restore .NET dependencies (optionally for a specific path)
+inputs:
+  dotnet_build_path:
+    description: Optional solution or project path for restore
+    required: false
+  dotnet_version:
+    description: Dotnet SDK version
+    required: false
+    default: '8.0.x'
+  nuget_auth_token:
+    description: Optional auth token for private feeds
+    required: false
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet_version }}
+        cache: true
+    - name: Configure NuGet auth (optional)
+      if: ${{ inputs.nuget_auth_token != '' }}
+      shell: bash
+      run: |
+        dotnet nuget add source "https://api.nuget.org/v3/index.json" --name nuget.org || true
+        dotnet nuget update source nuget.org --username "USERNAME" --password "${{ inputs.nuget_auth_token }}" --store-password-in-clear-text || true
+    - name: Restore
+      shell: bash
+      run: dotnet restore ${{ inputs.dotnet_build_path }}

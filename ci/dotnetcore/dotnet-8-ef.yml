@@ -1,0 +1,38 @@
+name: dotnet-8-ef
+
+on:
+  workflow_call:
+    inputs:
+      dotnet_ef_project:
+        description: Startup project for EF (-s)
+        required: true
+        type: string
+      dotnet_ef_script:
+        description: Output path for script file
+        required: true
+        type: string
+
+jobs:
+  ef:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install dotnet-ef tool
+        run: dotnet tool install -g dotnet-ef
+      - name: Generate EF migration script
+        shell: bash
+        env:
+          DOTNET_EF_PROJECT: ${{ inputs.dotnet_ef_project }}
+          DOTNET_EF_SCRIPT: ${{ inputs.dotnet_ef_script }}
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet-ef migrations script -o "$DOTNET_EF_SCRIPT" -i -s "$DOTNET_EF_PROJECT"
+      - name: Upload EF script
+        uses: actions/upload-artifact@v4
+        with:
+          name: ef-script
+          path: ${{ inputs.dotnet_ef_script }}
+          retention-days: 1

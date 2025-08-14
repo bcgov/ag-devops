@@ -1,0 +1,53 @@
+name: Dotnet 8 NuGet Deploy
+description: Push .cinuget/*.nupkg to a NuGet feed
+inputs:
+  nuget_feed:
+    description: NuGet feed URL. Defaults to GitHub Packages
+    required: false
+  nuget_username:
+    description: Username for feed (if using basic auth)
+    required: false
+  nuget_password:
+    description: Password/API key for feed
+    required: false
+  nuget_api_key:
+    description: Alternative to username/password if feed supports API key
+    required: false
+  dotnet_version:
+    description: Dotnet SDK version
+    required: false
+    default: '8.0.x'
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet_version }}
+        cache: true
+    - name: Configure NuGet source
+      id: cfg
+      shell: bash
+      env:
+        FEED: ${{ inputs.nuget_feed }}
+      run: |
+        set -euo pipefail
+        if [[ -z "${FEED:-}" ]]; then
+          FEED="https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.json"
+        fi
+        echo "feed=$FEED" >> "$GITHUB_OUTPUT"
+    - name: Add source (username/password)
+      if: ${{ inputs.nuget_username != '' && inputs.nuget_password != '' }}
+      shell: bash
+      run: |
+        dotnet nuget add source "${{ steps.cfg.outputs.feed }}" --name ci-feed --username "${{ inputs.nuget_username }}" --password "${{ inputs.nuget_password }}" --store-password-in-clear-text
+    - name: Add source (API key)
+      if: ${{ inputs.nuget_api_key != '' && (inputs.nuget_username == '' || inputs.nuget_password == '') }}
+      shell: bash
+      run: |
+        dotnet nuget add source "${{ steps.cfg.outputs.feed }}" --name ci-feed --username "token" --password "${{ inputs.nuget_api_key }}" --store-password-in-clear-text
+    - name: Push packages
+      shell: bash
+      run: |
+        cd .cinuget
+        dotnet nuget push "*.nupkg" -s "${{ steps.cfg.outputs.feed }}" --skip-duplicate

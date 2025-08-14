@@ -1,0 +1,32 @@
+name: Dotnet 8 EF Script
+description: Generate EF migrations script and save to file
+inputs:
+  dotnet_ef_project:
+    description: Startup project for EF (-s)
+    required: true
+  dotnet_ef_script:
+    description: Output path for script file
+    required: true
+  dotnet_version:
+    description: Dotnet SDK version
+    required: false
+    default: '8.0.x'
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet_version }}
+        cache: true
+    - name: Install dotnet-ef tool
+      shell: bash
+      run: dotnet tool install -g dotnet-ef
+    - name: Generate EF migration script
+      shell: bash
+      env:
+        DOTNET_EF_PROJECT: ${{ inputs.dotnet_ef_project }}
+        DOTNET_EF_SCRIPT: ${{ inputs.dotnet_ef_script }}
+      run: |
+        export PATH="$PATH:$HOME/.dotnet/tools"
+        dotnet-ef migrations script -o "$DOTNET_EF_SCRIPT" -i -s "$DOTNET_EF_PROJECT"

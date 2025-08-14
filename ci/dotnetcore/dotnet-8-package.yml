@@ -1,0 +1,50 @@
+name: dotnet-8-package
+
+on:
+  workflow_call:
+    inputs:
+      dotnet_publish_subpath:
+        description: Relative path under ./src for dotnet publish
+        required: true
+        type: string
+      version_prefix:
+        description: VersionPrefix MSBuild property
+        required: false
+        type: string
+      version_suffix:
+        description: Version suffix
+        required: false
+        type: string
+      dotnet_publish_skip_publishtrimmed:
+        description: If true, adds -p:PublishTrimmed=true
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish
+        shell: pwsh
+        env:
+          DOTNET_PUBLISH_SUBPATH: ${{ inputs.dotnet_publish_subpath }}
+          VERSION_PREFIX: ${{ inputs.version_prefix }}
+          VERSION_SUFFIX: ${{ inputs.version_suffix }}
+          DOTNET_PUBLISH_SKIP_PUBLISHTRIMMED: ${{ inputs.dotnet_publish_skip_publishtrimmed }}
+        run: |
+          if ($env:DOTNET_PUBLISH_SKIP_PUBLISHTRIMMED -eq 'true') { $PUBLISH_TRIMMED='-p:PublishTrimmed=true' } else { $PUBLISH_TRIMMED='' }
+          if ($env:VERSION_PREFIX) { $VERSION_PREFIX_PARAM = "-p:VersionPrefix=$env:VERSION_PREFIX" } else { $VERSION_PREFIX_PARAM = '' }
+          if ($env:VERSION_SUFFIX) { $VERSION_SUFFIX_PARAM = "--version-suffix=$env:VERSION_SUFFIX" } else { $VERSION_SUFFIX_PARAM = '' }
+          dotnet restore
+          dotnet publish ./src/$env:DOTNET_PUBLISH_SUBPATH -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=false -p:PublishSingleFile=true $PUBLISH_TRIMMED $VERSION_PREFIX_PARAM $VERSION_SUFFIX_PARAM
+      - name: Upload win-x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-x64-package
+          path: '**/bin/Release/**/win-x64/'
+          retention-days: 1

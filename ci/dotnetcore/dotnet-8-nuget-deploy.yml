@@ -1,0 +1,56 @@
+name: dotnet-8-nuget-deploy
+
+on:
+  workflow_call:
+    inputs:
+      nuget_feed:
+        description: NuGet feed URL. Defaults to GitHub Packages if omitted.
+        required: false
+        type: string
+    secrets:
+      NUGET_USERNAME:
+        required: false
+        description: Username for feed (if using basic auth)
+      NUGET_PASSWORD:
+        required: false
+        description: Password/API key for feed
+      NUGET_API_KEY:
+        required: false
+        description: Alternative to username/password if feed supports API key
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: nupkg
+          path: .cinuget
+      - name: Configure NuGet source
+        id: nuget
+        shell: bash
+        env:
+          FEED: ${{ inputs.nuget_feed }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${FEED:-}" ]]; then
+            FEED="https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.json"
+          fi
+          echo "feed=$FEED" >> "$GITHUB_OUTPUT"
+      - name: Add source (username/password)
+        if: ${{ secrets.NUGET_USERNAME != '' && secrets.NUGET_PASSWORD != '' }}
+        run: |
+          dotnet nuget add source "${{ steps.nuget.outputs.feed }}" --name ci-feed --username "${{ secrets.NUGET_USERNAME }}" --password "${{ secrets.NUGET_PASSWORD }}" --store-password-in-clear-text
+      - name: Add source (API key)
+        if: ${{ secrets.NUGET_API_KEY != '' && (secrets.NUGET_USERNAME == '' || secrets.NUGET_PASSWORD == '') }}
+        run: |
+          dotnet nuget add source "${{ steps.nuget.outputs.feed }}" --name ci-feed --username "token" --password "${{ secrets.NUGET_API_KEY }}" --store-password-in-clear-text
+      - name: Push packages
+        run: |
+          cd .cinuget
+          dotnet nuget push "*.nupkg" -s "${{ steps.nuget.outputs.feed }}" --skip-duplicate

@@ -1,0 +1,93 @@
+name: dotnet-8-tests-msbuild
+
+on:
+  workflow_call:
+    inputs:
+      unit_test_folder:
+        description: Space-separated list of unit test folders
+        required: true
+        type: string
+      coverage_threshold:
+        description: Numeric threshold percent (e.g., 80)
+        required: false
+        type: number
+        default: 80
+      coverage_threshold_type:
+        description: "Comma-separated: line,branch"
+        required: false
+        type: string
+        default: line,branch
+      coverage_exclusions:
+        description: ExcludeByAttribute values
+        required: false
+        type: string
+        default: DebuggerNonUserCodeAttribute
+      coverage_exclude_filter:
+        description: Additional coverlet filter (Exclude property)
+        required: false
+        type: string
+      dotnet_build_path:
+        description: Optional solution or project path for restore
+        required: false
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install tools
+        run: |
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+          sudo apt-get update
+          sudo apt-get install -y bc libxml2-utils
+      - name: Restore
+        run: dotnet restore ${{ inputs.dotnet_build_path }}
+      - name: Tests (msbuild)
+        shell: bash
+        env:
+          LOG_FOLDER: ${{ github.workspace }}/TestResults
+          UNIT_TEST_FOLDER: ${{ inputs.unit_test_folder }}
+          COV_THRESHOLD: ${{ inputs.coverage_threshold }}
+          COV_THRESHOLD_TYPE: ${{ inputs.coverage_threshold_type }}
+          COV_EXCLUSIONS: ${{ inputs.coverage_exclusions }}
+          COV_EXCLUDE_FILTER: ${{ inputs.coverage_exclude_filter }}
+        run: |
+          set -euo pipefail
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          mkdir -p "$LOG_FOLDER/coverage"
+          for FOLDER in $UNIT_TEST_FOLDER; do
+            dotnet test ./$FOLDER --configuration Release \
+              --logger "junit;LogFileName=$LOG_FOLDER/{assembly}UnitTestResults.xml" \
+              /p:CollectCoverage=true \
+              /p:CoverletOutput=$LOG_FOLDER/coverage/ \
+              /p:MergeWith="$LOG_FOLDER/coverage/coverage.json" \
+              /p:CoverletOutputFormat="cobertura,json" \
+              /p:ExcludeByAttribute="$COV_EXCLUSIONS" \
+              ${COV_EXCLUDE_FILTER:+/p:Exclude="$COV_EXCLUDE_FILTER"}
+          done
+          ls -la "$LOG_FOLDER" || true
+          ls -la "$LOG_FOLDER/coverage" || true
+          COV_REPORT_LINE_XPATH='string(//coverage/@line-rate)'
+          COV_REPORT_BRANCH_XPATH='string(//coverage/@branch-rate)'
+          COV_REPORT_METRIC="$COV_REPORT_LINE_XPATH"
+          if [[ "$COV_THRESHOLD_TYPE" == *"branch"* ]]; then COV_REPORT_METRIC="$COV_REPORT_BRANCH_XPATH"; fi
+          COVERAGE_LINE=$(echo "scale=2; $(xmllint --xpath $COV_REPORT_LINE_XPATH $LOG_FOLDER/coverage/coverage.cobertura.xml)*100/1" | bc)
+          COVERAGE_BRANCH=$(echo "scale=2; $(xmllint --xpath $COV_REPORT_BRANCH_XPATH $LOG_FOLDER/coverage/coverage.cobertura.xml)*100/1" | bc)
+          reportgenerator -reports:$LOG_FOLDER/coverage/coverage.cobertura.xml -targetdir:$LOG_FOLDER/coverage -reporttypes:HTML
+          COVERAGE=$(xmllint --xpath $COV_REPORT_METRIC $LOG_FOLDER/coverage/coverage.cobertura.xml)
+          if [[ "$COV_THRESHOLD_TYPE" == *"branch"* ]] && [[ $(echo "$COVERAGE_BRANCH < $COV_THRESHOLD" | bc) -eq 1 ]]; then echo "Branch coverage below threshold!"; exit 1; fi
+          if [[ "$COV_THRESHOLD_TYPE" == *"line"* ]] && [[ $(echo "$COVERAGE_LINE < $COV_THRESHOLD" | bc) -eq 1 ]]; then echo "Line coverage below threshold!"; exit 1; fi
+          echo "| Total   | $(echo "scale=2; ($COVERAGE*100)/1" | bc)% |"
+      - name: Upload test results and coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            **/*TestResults.xml
+            TestResults/
+          retention-days: 7

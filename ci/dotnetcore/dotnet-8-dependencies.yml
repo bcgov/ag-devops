@@ -1,0 +1,34 @@
+name: dotnet-8-dependencies
+
+on:
+  workflow_call:
+    inputs:
+      dotnet_build_path:
+        description: Optional solution or project path for restore
+        required: false
+        type: string
+    secrets:
+      NUGET_AUTH_TOKEN:
+        description: Optional token for authenticated feeds
+        required: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Configure NuGet auth (optional)
+        if: ${{ secrets.NUGET_AUTH_TOKEN != '' }}
+        run: |
+          dotnet nuget add source "https://api.nuget.org/v3/index.json" --name nuget.org || true
+          dotnet nuget update source nuget.org --username "USERNAME" --password "${{ secrets.NUGET_AUTH_TOKEN }}" --store-password-in-clear-text || true
+      - name: Restore
+        run: dotnet restore ${{ inputs.dotnet_build_path }}
+      - name: Cache obj
+        uses: actions/cache@v4
+        with:
+          path: '**/obj/'
+          key: obj-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}

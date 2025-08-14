@@ -1,0 +1,40 @@
+name: Dotnet 8 NuGet Pack
+description: dotnet pack to .cinuget with repo URLs
+inputs:
+  version_prefix:
+    description: VersionPrefix MSBuild property
+    required: false
+  version_suffix:
+    description: Version suffix
+    required: false
+  no_default_excludes:
+    description: NoDefaultExcludes for dotnet pack
+    required: false
+    default: 'false'
+  dotnet_version:
+    description: Dotnet SDK version
+    required: false
+    default: '8.0.x'
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet_version }}
+        cache: true
+    - name: Pack
+      shell: bash
+      env:
+        VERSION_PREFIX: ${{ inputs.version_prefix }}
+        VERSION_SUFFIX: ${{ inputs.version_suffix }}
+        NO_DEFAULT_EXCLUDES: ${{ inputs.no_default_excludes }}
+      run: |
+        set -euo pipefail
+        CI_PROJECT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+        NO_DEFAULT=${NO_DEFAULT_EXCLUDES:-false}
+        VERSION_PREFIX_PARAM=""; [[ -n "${VERSION_PREFIX:-}" ]] && VERSION_PREFIX_PARAM="-p:VersionPrefix=${VERSION_PREFIX}"
+        VERSION_SUFFIX_PARAM=""; [[ -n "${VERSION_SUFFIX:-}" ]] && VERSION_SUFFIX_PARAM="--version-suffix=${VERSION_SUFFIX}"
+        mkdir -p .cinuget
+        dotnet restore
+        dotnet pack --configuration Release --no-build --output .cinuget --verbosity normal $VERSION_PREFIX_PARAM $VERSION_SUFFIX_PARAM -p:NoDefaultExcludes=${NO_DEFAULT} -p:RepositoryUrl="$CI_PROJECT_URL" -p:PackageProjectUrl="$CI_PROJECT_URL"

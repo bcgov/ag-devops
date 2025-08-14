@@ -1,0 +1,41 @@
+name: Dotnet 8 Build
+description: Build .NET (Release) with optional warn-as-error and version props
+inputs:
+  dotnet_build_path:
+    description: Optional solution or project path for build
+    required: false
+  warn_as_error:
+    description: Treat warnings as errors
+    required: false
+    default: 'false'
+  version_prefix:
+    description: VersionPrefix MSBuild property
+    required: false
+  version_suffix:
+    description: Version suffix
+    required: false
+  dotnet_version:
+    description: Dotnet SDK version
+    required: false
+    default: '8.0.x'
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet_version }}
+        cache: true
+    - name: Build
+      shell: bash
+      env:
+        DOTNET_BUILD_PATH: ${{ inputs.dotnet_build_path }}
+        WARN_AS_ERROR: ${{ inputs.warn_as_error }}
+        VERSION_PREFIX: ${{ inputs.version_prefix }}
+        VERSION_SUFFIX: ${{ inputs.version_suffix }}
+      run: |
+        set -euo pipefail
+        VERSION_PREFIX_PARAM=""; [[ -n "${VERSION_PREFIX:-}" ]] && VERSION_PREFIX_PARAM="-p:VersionPrefix=${VERSION_PREFIX}"
+        VERSION_SUFFIX_PARAM=""; [[ -n "${VERSION_SUFFIX:-}" ]] && VERSION_SUFFIX_PARAM="--version-suffix=${VERSION_SUFFIX}"
+        WARN=""; [[ "${WARN_AS_ERROR}" == "true" ]] && WARN="/p:TreatWarningsAsErrors=true /warnaserror"
+        dotnet build ${DOTNET_BUILD_PATH:-} --configuration Release $WARN $VERSION_PREFIX_PARAM $VERSION_SUFFIX_PARAM

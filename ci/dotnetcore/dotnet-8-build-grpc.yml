@@ -1,0 +1,56 @@
+name: dotnet-8-build-grpc
+
+on:
+  workflow_call:
+    inputs:
+      dotnet_build_path:
+        description: Optional solution or project path for build
+        required: false
+        type: string
+      warn_as_error:
+        description: Treat warnings as errors
+        required: false
+        type: boolean
+        default: false
+      version_prefix:
+        description: VersionPrefix MSBuild property
+        required: false
+        type: string
+      version_suffix:
+        description: Version suffix
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        shell: bash
+        env:
+          DOTNET_BUILD_PATH: ${{ inputs.dotnet_build_path }}
+          WARN_AS_ERROR: ${{ inputs.warn_as_error }}
+          VERSION_PREFIX: ${{ inputs.version_prefix }}
+          VERSION_SUFFIX: ${{ inputs.version_suffix }}
+        run: |
+          set -euo pipefail
+          VERSION_PREFIX_PARAM=""; [[ -n "${VERSION_PREFIX:-}" ]] && VERSION_PREFIX_PARAM="-p:VersionPrefix=${VERSION_PREFIX}"
+          VERSION_SUFFIX_PARAM=""; [[ -n "${VERSION_SUFFIX:-}" ]] && VERSION_SUFFIX_PARAM="--version-suffix=${VERSION_SUFFIX}"
+          WARN=""; [[ "${WARN_AS_ERROR}" == "true" ]] && WARN="/p:TreatWarningsAsErrors=true /warnaserror"
+          dotnet build ${DOTNET_BUILD_PATH:-} --configuration Release $WARN $VERSION_PREFIX_PARAM $VERSION_SUFFIX_PARAM
+      - name: Upload bin/obj
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            **/bin/
+            **/obj/
+          retention-days: 1
