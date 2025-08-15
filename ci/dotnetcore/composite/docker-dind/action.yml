@@ -98,22 +98,30 @@ runs:
       run: |
         set -euo pipefail
         docker rm -f dind 2>/dev/null || true
-        docker run -d --privileged -p 2375:2375 --name dind "$DIND_IMAGE" --tls=false
-        echo "DOCKER_HOST=tcp://localhost:2375" >> "$GITHUB_ENV"
+        # Start DinD with TLS disabled and listen on 0.0.0.0:2375
+        docker run -d --privileged \
+          -e DOCKER_TLS_CERTDIR= \
+          -p 127.0.0.1:2375:2375 \
+          --name dind "$DIND_IMAGE" \
+          dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --storage-driver=overlay2
+        echo "DOCKER_HOST=tcp://127.0.0.1:2375" >> "$GITHUB_ENV"
         echo "DOCKER_TLS_CERTDIR=" >> "$GITHUB_ENV"
 
     - name: Wait for Docker daemon
       shell: bash
       run: |
         set -euo pipefail
-        for i in {1..60}; do
-          if docker -H tcp://localhost:2375 version &>/dev/null; then
-            docker -H tcp://localhost:2375 info
+        for i in {1..120}; do
+          if docker -H tcp://127.0.0.1:2375 version &>/dev/null; then
+            docker -H tcp://127.0.0.1:2375 info
             exit 0
           fi
           sleep 1
         done
-        echo "Docker daemon did not become ready on 2375" >&2; exit 1
+        echo "Docker daemon did not become ready on 2375" >&2
+        echo "--- DinD last 200 log lines ---" >&2
+        docker logs --tail 200 dind >&2 || true
+        exit 1
 
     - name: Docker login (explicit)
       if: ${{ inputs.login_registry != '' && inputs.registry_username != '' && inputs.registry_password != '' }}
