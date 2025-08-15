@@ -154,8 +154,22 @@ runs:
         IMAGE: ${{ inputs.image }}
         TAGS_RAW: ${{ inputs.tags }}
         REPO: ${{ github.repository }}
+        AUTO_TAGGING: ${{ inputs.auto_tagging }}
       run: |
         set -euo pipefail
+        # Compute tags when auto_tagging is enabled
+        if [[ "${AUTO_TAGGING}" == "true" ]]; then
+          sanitize() { echo "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-'; }
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            dest=$(sanitize "${GITHUB_BASE_REF:-}")
+            src=$(sanitize "${GITHUB_HEAD_REF:-}")
+            extra_tag="${dest}.${src}.build${GITHUB_RUN_NUMBER}"
+          else
+            branch=$(sanitize "${GITHUB_REF_NAME:-}")
+            extra_tag="${branch}.build${GITHUB_RUN_NUMBER}"
+          fi
+          TAGS_RAW="latest,${extra_tag}"
+        fi
         tags=$(echo "$TAGS_RAW" | tr ',' '\n' | sed '/^\s*$/d' | xargs -I{} echo {})
         repo_lc="$(echo "${REPO}" | tr '[:upper:]' '[:lower:]')"
         # Determine base: explicit registry+image, else default GHCR for this repo
