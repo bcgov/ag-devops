@@ -1,0 +1,208 @@
+name: Docker DinD Environment
+description: "Start a Docker-in-Docker daemon on tcp://localhost:2375; by default builds and pushes ghcr.io/<owner>/<repo>:latest using the workflow token."
+inputs:
+  docker_dind_image:
+    description: docker:dind image
+    required: false
+    default: "docker:28.3.3-dind"
+  login_registry:
+    description: Optional registry to login
+    required: false
+  registry_username:
+    description: Registry username
+    required: false
+  registry_password:
+    description: Registry password/token
+    required: false
+  script:
+    description: Optional bash script to run once Docker is ready
+    required: false
+    default: ""
+  # Build/push inputs (optional; defaults target GHCR of this repo)
+  registry:
+    description: Registry hostname (e.g., ghcr.io). Default empty uses ghcr.io
+    required: false
+    default: ""
+  image:
+    description: Image repository (e.g., owner/app). Default empty uses <owner>/<repo>
+    required: false
+    default: ""
+  tags:
+    description: Comma or newline separated tags or fully-qualified refs.
+    required: false
+    default: "latest"
+  context:
+    description: Build context
+    required: false
+    default: "."
+  file:
+    description: Dockerfile path
+    required: false
+    default: "Dockerfile"
+  build_args:
+    description: Newline-separated build args (KEY=VALUE per line)
+    required: false
+    default: ""
+  labels:
+    description: Newline-separated labels (KEY=VALUE per line)
+    required: false
+    default: ""
+  platforms:
+    description: Target platforms (comma-separated)
+    required: false
+    default: "linux/amd64"
+  push:
+    description: Push image to registry
+    required: false
+    default: "true"
+  load:
+    description: Load image into local docker (use when push=false)
+    required: false
+    default: "false"
+  use_cache:
+    description: Enable GHA cache for Buildx
+    required: false
+    default: "true"
+  sbom:
+    description: Generate SBOM
+    required: false
+    default: "false"
+  provenance:
+    description: Generate provenance
+    required: false
+    default: "false"
+  scan:
+    description: Run vulnerability scan (Trivy)
+    required: false
+    default: "true"
+  trivy_severity:
+    description: Severities to fail on (Trivy)
+    required: false
+    default: "CRITICAL,HIGH"
+  trivy_ignore_unfixed:
+    description: Ignore unfixed vulnerabilities (Trivy)
+    required: false
+    default: "true"
+  do_build:
+    description: Set to 'true' to build/push/scan within this action. When 'false', only DinD is prepared.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Start docker:dind
+      shell: bash
+      env:
+        DIND_IMAGE: ${{ inputs.docker_dind_image }}
+      run: |
+        set -euo pipefail
+        docker rm -f dind 2>/dev/null || true
+        docker run -d --privileged -p 2375:2375 --name dind "$DIND_IMAGE" --tls=false
+        echo "DOCKER_HOST=tcp://localhost:2375" >> "$GITHUB_ENV"
+        echo "DOCKER_TLS_CERTDIR=" >> "$GITHUB_ENV"
+
+    - name: Wait for Docker daemon
+      shell: bash
+      run: |
+        set -euo pipefail
+        for i in {1..60}; do
+          if docker -H tcp://localhost:2375 version &>/dev/null; then
+            docker -H tcp://localhost:2375 info
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "Docker daemon did not become ready on 2375" >&2; exit 1
+
+    - name: Docker login (explicit)
+      if: ${{ inputs.login_registry != '' && inputs.registry_username != '' && inputs.registry_password != '' }}
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.login_registry }}
+        username: ${{ inputs.registry_username }}
+        password: ${{ inputs.registry_password }}
+
+    - name: Docker login (GHCR default)
+      if: ${{ inputs.login_registry == '' && inputs.do_build == 'true' && inputs.push == 'true' }}
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Setup Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Setup QEMU (for cross-platform builds)
+      uses: docker/setup-qemu-action@v3
+
+    - name: Compose image references
+      id: compose
+      if: ${{ inputs.do_build == 'true' }}
+      shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        IMAGE: ${{ inputs.image }}
+        TAGS_RAW: ${{ inputs.tags }}
+        REPO: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        tags=$(echo "$TAGS_RAW" | tr ',' '\n' | sed '/^\s*$/d' | xargs -I{} echo {})
+        repo_lc="$(echo "${REPO}" | tr '[:upper:]' '[:lower:]')"
+        # Determine base: explicit registry+image, else default GHCR for this repo
+        if [[ -n "$REGISTRY" && -n "$IMAGE" ]]; then
+          base="$REGISTRY/$IMAGE"
+        else
+          base="ghcr.io/${repo_lc}"
+        fi
+        full_tags=""
+        first_tag=""
+        while IFS= read -r t; do
+          # Fully-qualified overrides allowed in tags
+          if [[ "$t" == "/" ]]; then
+            ref="$t"
+          else
+            ref="$base:$t"
+          fi
+          if [[ -z "$first_tag" ]]; then first_tag="$ref"; fi
+          full_tags+="$ref\n"
+        done <<< "$tags"
+        full_tags=$(echo -e "$full_tags" | sed '/^\s*$/d')
+        echo "full_tags<<EOF" >> "$GITHUB_OUTPUT"
+        echo "$full_tags" >> "$GITHUB_OUTPUT"
+        echo "EOF" >> "$GITHUB_OUTPUT"
+        echo "first_tag=$first_tag" >> "$GITHUB_OUTPUT"
+
+    - name: Build and push
+      id: build
+      if: ${{ inputs.do_build == 'true' && steps.compose.outputs.full_tags != '' }}
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.file }}
+        push: ${{ inputs.push }}
+        load: ${{ inputs.load }}
+        platforms: ${{ inputs.platforms }}
+        tags: ${{ steps.compose.outputs.full_tags }}
+        labels: ${{ inputs.labels }}
+        build-args: ${{ inputs.build_args }}
+        provenance: ${{ inputs.provenance }}
+        sbom: ${{ inputs.sbom }}
+        cache-from: ${{ inputs.use_cache == 'true' && 'type=gha' || '' }}
+        cache-to: ${{ inputs.use_cache == 'true' && 'type=gha,mode=max' || '' }}
+
+    - name: Trivy vulnerability scan
+      if: ${{ inputs.do_build == 'true' && inputs.scan == 'true' && steps.compose.outputs.first_tag != '' }}
+      uses: aquasecurity/trivy-action@0.24.0
+      with:
+        image-ref: ${{ steps.compose.outputs.first_tag }}
+        severity: ${{ inputs.trivy_severity }}
+        ignore-unfixed: ${{ inputs.trivy_ignore_unfixed }}
+        format: "table"
+        exit-code: "1"
+
+    - name: Run script (optional)
+      if: ${{ inputs.script != '' }}
+      shell: bash
+      run: ${{ inputs.script }}
