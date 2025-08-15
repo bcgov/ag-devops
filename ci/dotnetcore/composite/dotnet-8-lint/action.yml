@@ -1,0 +1,27 @@
+name: ".NET 8 Lint"
+description: "Run dotnet format to ensure code style compliance"
+
+inputs:
+  project_path:
+    description: "Path to the .NET project or solution"
+    required: false
+    default: "."
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: "8.0.x"
+
+    - name: Restore dependencies
+      shell: bash
+      run: dotnet restore ${{ inputs.project_path }}
+
+    - name: Run dotnet format (verify only)
+      shell: bash
+      run: dotnet format --verify-no-changes --severity error ${{ inputs.project_path }}

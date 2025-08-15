@@ -1,0 +1,33 @@
+name: .NET 8 Lint
+
+on:
+  workflow_call:
+    inputs:
+      project_path:
+        required: false
+        type: string
+        default: "."
+      runner:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+
+jobs:
+  dotnet-lint:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore dependencies
+        shell: bash
+        run: dotnet restore ${{ inputs.project_path }}
+
+      - name: Run dotnet format (verify only)
+        shell: bash
+        run: dotnet format --verify-no-changes --severity error ${{ inputs.project_path }}
