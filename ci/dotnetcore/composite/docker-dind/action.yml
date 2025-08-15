@@ -203,6 +203,8 @@ runs:
     - name: Trivy vulnerability scan
       if: ${{ inputs.do_build == 'true' && inputs.scan == 'true' && steps.compose.outputs.first_tag != '' }}
       uses: aquasecurity/trivy-action@0.24.0
+      env:
+        DOCKER_HOST: ""
       with:
         image-ref: ${{ steps.compose.outputs.first_tag }}
         severity: ${{ inputs.trivy_severity }}
