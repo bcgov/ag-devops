@@ -161,31 +161,42 @@ runs:
         AUTO_TAGGING: ${{ inputs.auto_tagging }}
       run: |
         set -euo pipefail
-        # Compute tags when auto_tagging is enabled
+
+        sanitize() {
+          echo "$1" \
+            | tr '[:upper:]' '[:lower:]' \
+            | tr -c 'a-z0-9._-' '-' \
+            | sed 's/^-*//; s/-*$//; s/--*/-/g'
+        }
+
         if [[ "${AUTO_TAGGING}" == "true" ]]; then
-          sanitize() { echo "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-'; }
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             dest=$(sanitize "${GITHUB_BASE_REF:-}")
             src=$(sanitize "${GITHUB_HEAD_REF:-}")
-            extra_tag="${dest}.${src}.build${GITHUB_RUN_NUMBER}"
+            branch="${dest}"
           else
-            branch=$(sanitize "${GITHUB_REF_NAME:-}")
-            extra_tag="${branch}.build${GITHUB_RUN_NUMBER}"
+            # Strip everything after first slash so ci/feature → ci
+            branch=$(echo "${GITHUB_REF_NAME:-}" | cut -d'/' -f1)
+            branch=$(sanitize "$branch")
           fi
-          TAGS_RAW="latest,${extra_tag}"
+          short_sha=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          build_tag="${branch}.build${GITHUB_RUN_NUMBER}"
+          sha_tag="${branch}.${short_sha}"
+          TAGS_RAW="latest,${build_tag},${sha_tag}"
         fi
+
         tags=$(echo "$TAGS_RAW" | tr ',' '\n' | sed '/^\s*$/d' | xargs -I{} echo {})
         repo_lc="$(echo "${REPO}" | tr '[:upper:]' '[:lower:]')"
-        # Determine base: explicit registry+image, else default GHCR for this repo
+
         if [[ -n "$REGISTRY" && -n "$IMAGE" ]]; then
           base="$REGISTRY/$IMAGE"
         else
           base="ghcr.io/${repo_lc}"
         fi
+
         full_tags=""
         first_tag=""
         while IFS= read -r t; do
-          # Fully-qualified overrides allowed in tags
           if [[ "$t" == "/" ]]; then
             ref="$t"
           else
@@ -194,6 +205,7 @@ runs:
           if [[ -z "$first_tag" ]]; then first_tag="$ref"; fi
           full_tags+="$ref\n"
         done <<< "$tags"
+
         full_tags=$(echo -e "$full_tags" | sed '/^\s*$/d')
         echo "full_tags<<EOF" >> "$GITHUB_OUTPUT"
         echo "$full_tags" >> "$GITHUB_OUTPUT"
