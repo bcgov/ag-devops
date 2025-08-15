@@ -61,7 +61,7 @@ runs:
             --logger "junit;LogFileName=$LOG_FOLDER/{assembly}UnitTestResults.xml" \
             /p:CollectCoverage=true \
             /p:CoverletOutput=$LOG_FOLDER/coverage/ \
-            /p:MergeWith="$LOG_FOLDER/coverage/coverage.json" \
+            /p:CoverletOutputFormat=cobertura,json \
             /p:CoverletOutputFormat="cobertura,json" \
             /p:ExcludeByAttribute="$COV_EXCLUSIONS" \
             ${COV_EXCLUDE_FILTER:+/p:Exclude="$COV_EXCLUDE_FILTER"}
