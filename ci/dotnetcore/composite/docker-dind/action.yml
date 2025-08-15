@@ -31,6 +31,10 @@ inputs:
     description: Comma or newline separated tags or fully-qualified refs.
     required: false
     default: "latest"
+  auto_tagging:
+    description: Automatically compute tags based on branch or PR
+    required: false
+    default: "true"
   context:
     description: Build context
     required: false
