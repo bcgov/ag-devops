@@ -62,7 +62,6 @@ runs:
             /p:CollectCoverage=true \
             /p:CoverletOutput=$LOG_FOLDER/coverage/ \
             /p:CoverletOutputFormat=cobertura,json \
-            /p:CoverletOutputFormat="cobertura,json" \
             /p:ExcludeByAttribute="$COV_EXCLUSIONS" \
             ${COV_EXCLUDE_FILTER:+/p:Exclude="$COV_EXCLUDE_FILTER"}
         done
