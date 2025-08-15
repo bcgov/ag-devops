@@ -76,3 +76,13 @@ runs:
         if [[ "$COV_THRESHOLD_TYPE" == *"branch"* ]] && [[ $(echo "$COVERAGE_BRANCH < $COV_THRESHOLD" | bc) -eq 1 ]]; then echo "Branch coverage below threshold!"; exit 1; fi
         if [[ "$COV_THRESHOLD_TYPE" == *"line"* ]] && [[ $(echo "$COVERAGE_LINE < $COV_THRESHOLD" | bc) -eq 1 ]]; then echo "Line coverage below threshold!"; exit 1; fi
         echo "| Total   | $(echo "scale=2; ($COVERAGE*100)/1" | bc)% |"
+
+    - name: Upload test results and coverage
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: |
+          **/*TestResults.xml
+          TestResults/
+        retention-days: 7
