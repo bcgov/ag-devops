@@ -7,11 +7,11 @@ inputs:
   coverage_threshold:
     description: Numeric threshold percent (e.g., 80)
     required: false
-    default: '80'
+    default: "80"
   coverage_threshold_type:
     description: "Comma-separated: line,branch"
     required: false
-    default: 'line,branch'
+    default: "line,branch"
   coverage_exclusions:
     description: ExcludeByAttribute values
     required: false
@@ -25,7 +25,7 @@ inputs:
   dotnet_version:
     description: Dotnet SDK version
     required: false
-    default: '8.0.x'
+    default: "8.0.x"
 runs:
   using: composite
   steps:
@@ -62,7 +62,7 @@ runs:
             /p:CollectCoverage=true \
             /p:CoverletOutput=$LOG_FOLDER/coverage/ \
             /p:MergeWith="$LOG_FOLDER/coverage/coverage.json" \
-            /p:CoverletOutputFormat="cobertura,json" \
+            /p:CoverletOutputFormat="cobertura;json" \
             /p:ExcludeByAttribute="$COV_EXCLUSIONS" \
             ${COV_EXCLUDE_FILTER:+/p:Exclude="$COV_EXCLUDE_FILTER"}
         done
