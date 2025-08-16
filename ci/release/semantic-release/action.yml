@@ -1,46 +1,24 @@
-name: Semantic Release
-description: "Run semantic-release to create versioned releases and Git tags."
-
+name: "Semantic Release"
+description: "Composite action to run Release Please with our standard settings"
 inputs:
-  node_version:
-    description: "Node.js version to use"
+  token:
+    description: "GitHub token for authentication"
+    required: true
+  release-type:
+    description: "Release type (node, simple, etc.)"
     required: false
-    default: "20.x"
-  dry_run:
-    description: "If true, will run semantic-release in dry-run mode"
+    default: simple
+  target-branch:
+    description: "Branch to run release against"
     required: false
-    default: "false"
-  npm_token:
-    description: "NPM authentication token for publishing (if needed)"
-    required: false
-    default: ""
+    default: main
 
 runs:
   using: "composite"
   steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
+    - name: Run Release Please
+      uses: google-github-actions/release-please-action@v4
       with:
-        node-version: ${{ inputs.node_version }}
-
-    - name: Install dependencies
-      shell: bash
-      run: npm ci
-
-    - name: Configure NPM token (if provided)
-      if: ${{ inputs.npm_token != '' }}
-      shell: bash
-      run: |
-        echo "//registry.npmjs.org/:_authToken=${{ inputs.npm_token }}" > ~/.npmrc
-
-    - name: Run semantic-release
-      shell: bash
-      run: |
-        if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-          npx semantic-release --dry-run
-        else
-          npx semantic-release
-        fi
+        token: ${{ inputs.token }}
+        release-type: ${{ inputs.release-type }}
+        target-branch: ${{ inputs.target-branch }}
