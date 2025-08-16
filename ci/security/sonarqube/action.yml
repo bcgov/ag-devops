@@ -1,0 +1,36 @@
+name: "Shared SonarQube Scan"
+description: "Composite action to run SonarQube scan without requiring a properties file"
+
+inputs:
+  project-key:
+    description: "The SonarQube project key"
+    required: true
+  sonar-token:
+    description: "SonarQube authentication token"
+    required: true
+  sonar-host-url:
+    description: "SonarQube server URL"
+    required: true
+    default: "https://ag-sonarqube-e7c7c2-prod.apps.gold.devops.gov.bc.ca/"
+  sources:
+    description: "Path to source code for analysis"
+    required: false
+    default: "."
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Needed for better code coverage reporting
+
+    - name: Run SonarQube Scan
+      uses: SonarSource/sonarqube-scan-action@v4.1.0
+      env:
+        SONAR_TOKEN: ${{ inputs.sonar-token }}
+        SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
+      with:
+        args: >
+          -Dsonar.projectKey=${{ inputs.project-key }}
+          -Dsonar.sources=${{ inputs.sources }}
