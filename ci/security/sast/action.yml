@@ -23,6 +23,7 @@ inputs:
   github_token:
     description: "GitHub token for authentication"
     required: true
+    default: "${{ secrets.GITHUB_TOKEN }}"
   gitleaks_license:
     description: "Gitleaks license key"
     required: true
