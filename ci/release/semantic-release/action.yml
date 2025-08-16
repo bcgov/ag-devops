@@ -17,7 +17,7 @@ runs:
   using: "composite"
   steps:
     - name: Run Release Please
-      uses: google-github-actions/release-please-action@v4
+      uses: googleapis/release-please-action@v4
       with:
         token: ${{ inputs.token }}
         release-type: ${{ inputs.release-type }}
