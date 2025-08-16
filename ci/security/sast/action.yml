@@ -1,0 +1,59 @@
+name: "Static Code Analysis & Secrets Scan"
+description: "Composite action to run SonarQube scan and secrets scan with Gitleaks"
+
+inputs:
+  project-key:
+    description: "The SonarQube project key"
+    required: true
+  sonar-token:
+    description: "SonarQube authentication token"
+    required: true
+  sonar-host-url:
+    description: "SonarQube server URL"
+    required: true
+    default: "https://ag-sonarqube-e7c7c2-prod.apps.gold.devops.gov.bc.ca/"
+  sources:
+    description: "Path to source code for analysis"
+    required: false
+    default: "."
+  coverage-report:
+    description: "Path to the Cobertura coverage XML report"
+    required: false
+    default: "TestResults/coverage/coverage.cobertura.xml"
+  github_token:
+    description: "GitHub token for authentication"
+    required: true
+  gitleaks_license:
+    description: "Gitleaks license key"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Needed for better code coverage reporting
+
+    - name: Run Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITLEAKS_LICENSE: ${{ inputs.gitleaks_license }}
+        # Download the coverage artifact from the test job
+    - name: Download coverage report
+      uses: actions/download-artifact@v4
+      with:
+        name: test-results
+        path: TestResults/coverage # ensure the same path your Sonar composite expects
+
+    - name: Run SonarQube Scan
+      uses: SonarSource/sonarqube-scan-action@v5.3.0
+      env:
+        SONAR_TOKEN: ${{ inputs.sonar-token }}
+        SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
+      with:
+        args: >
+          -Dsonar.projectKey=${{ inputs.project-key }}
+          -Dsonar.sources=${{ inputs.sources }}
+          -Dsonar.cs.vscoveragexml.reportsPaths=${{ inputs.coverage-report }}
