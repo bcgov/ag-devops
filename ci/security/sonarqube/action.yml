@@ -20,6 +20,12 @@ inputs:
     description: "Path to the Cobertura coverage XML report"
     required: false
     default: "TestResults/coverage/coverage.cobertura.xml"
+  github_token:
+    description: "GitHub token for authentication"
+    required: true
+  gitleaks_license:
+    description: "Gitleaks license key"
+    required: true
 
 runs:
   using: "composite"
@@ -29,6 +35,11 @@ runs:
       with:
         fetch-depth: 0 # Needed for better code coverage reporting
 
+    - name: Run Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITLEAKS_LICENSE: ${{ inputs.gitleaks_license }}
         # Download the coverage artifact from the test job
     - name: Download coverage report
       uses: actions/download-artifact@v4

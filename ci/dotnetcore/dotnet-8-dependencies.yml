@@ -26,7 +26,11 @@ jobs:
           dotnet nuget add source "https://api.nuget.org/v3/index.json" --name nuget.org || true
           dotnet nuget update source nuget.org --username "USERNAME" --password "${{ secrets.NUGET_AUTH_TOKEN }}" --store-password-in-clear-text || true
       - name: Restore
-        run: dotnet restore ${{ inputs.dotnet_build_path }}
+        run:
+          dotnet restore ${{ inputs.dotnet_build_path }}
+          # Dependency vulnerability scan
+      - name: Dependency Scanning
+        run: dotnet list package --vulnerable
       - name: Cache obj
         uses: actions/cache@v4
         with:
