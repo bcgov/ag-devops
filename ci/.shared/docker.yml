@@ -172,7 +172,7 @@ jobs:
           sanitize() { echo "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-' | sed 's/^-*//; s/-*$//; s/--*/-/g'; }
           if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
             # Use the release tag as the only Docker tag
-            TAGS_RAW="${GITHUB_REF_NAME}"
+            TAGS_RAW: ${{ github.event.release.tag_name }}
           elif [[ "${AUTO_TAGGING}" == "true" ]]; then
             if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
               dest=$(sanitize "${GITHUB_BASE_REF:-}")
