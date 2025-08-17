@@ -245,8 +245,27 @@ runs:
         severity: ${{ inputs.trivy_severity }}
         ignore-unfixed: ${{ inputs.trivy_ignore_unfixed }}
         format: "table"
+        output: "trivy-results.txt"
         exit-code: "1"
         github-pat: ${{ github.token }}
+
+    - name: Upload trivy report as a Github artifact
+      if: ${{ success() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy-sbom-report
+        path: trivy-results.txt
+        retention-days: 20
+
+    - name: Add Trivy Scan Summary
+      shell: bash
+      if: ${{ success() }}
+      run: |
+        echo "## 🔎 Trivy Image Scan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        head -n 50 trivy-results.txt >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_Full results available in uploaded artifact (trivy-sbom-report)_" >> $GITHUB_STEP_SUMMARY
 
     - name: Run script (optional)
       if: ${{ inputs.script != '' }}
