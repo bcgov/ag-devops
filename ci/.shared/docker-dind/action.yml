@@ -169,7 +169,12 @@ runs:
             | sed 's/^-*//; s/-*$//; s/--*/-/g'
         }
 
-        if [[ "${AUTO_TAGGING}" == "true" ]]; then
+        if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
+            # Use the release tag as the only Docker tag
+            RELEASE_TAG=$(jq -r .release.tag_name "$GITHUB_EVENT_PATH")
+            echo "Using release tag: $RELEASE_TAG"
+            TAGS_RAW="${RELEASE_TAG}"
+        elif [[ "${AUTO_TAGGING}" == "true" ]]; then
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             dest=$(sanitize "${GITHUB_BASE_REF:-}")
             src=$(sanitize "${GITHUB_HEAD_REF:-}")
