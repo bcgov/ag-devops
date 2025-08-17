@@ -36,6 +36,7 @@ runs:
         fetch-depth: 0 # Needed for better code coverage reporting
 
     - name: Run Gitleaks
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') || github.event_name == 'pull_request'
       uses: gitleaks/gitleaks-action@v2
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -48,6 +49,7 @@ runs:
         path: TestResults/coverage # ensure the same path your Sonar composite expects
 
     - name: Run SonarQube Scan
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') || github.event_name == 'pull_request'
       uses: SonarSource/sonarqube-scan-action@v5.3.0
       env:
         SONAR_TOKEN: ${{ inputs.sonar-token }}
