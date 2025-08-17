@@ -261,10 +261,11 @@ runs:
       shell: bash
       if: ${{ success() }}
       run: |
+        echo "### 🔎 Trivy Image Scan Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         head -n 50 trivy-results.txt >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "_Full results available in uploaded artifact (trivy-sbom-report)_" >> $GITHUB_STEP_SUMMARY
+        echo " ####_Full results available in uploaded artifact (trivy-sbom-report)_" >> $GITHUB_STEP_SUMMARY
 
     - name: Run script (optional)
       if: ${{ inputs.script != '' }}
