@@ -24,4 +24,3 @@ runs:
         token: ${{ inputs.token }}
         release-type: ${{ inputs.release-type }}
         target-branch: ${{ inputs.target-branch }}
-        skip-github-pull-request: true
