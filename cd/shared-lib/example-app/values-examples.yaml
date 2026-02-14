@@ -1,0 +1,32 @@
+redis:
+  enabled: true
+  image:
+    tag: 7.2.4-alpine
+  networkPolicy:
+    create: true
+
+openfga:
+  enabled: true
+  image:
+    tag: v1.5.2
+  dataClass: medium
+  replicas: 1
+  # Option A: literal datastore URI (quickstart)
+  datastore:
+    uri: "postgresql://openfga:changeme@myapp-postgresql:5432/openfga?sslmode=disable"
+  # Option B: secret-based URI (preferred)
+  # datastore:
+  #   existingSecret: openfga-datastore
+  #   uriKey: uri
+  networkPolicy:
+    create: true
+    postgres:
+      # Defaults match Bitnami's PostgreSQL chart labels in the same namespace.
+      namespace: ""
+      podSelectorLabels:
+        app.kubernetes.io/name: postgresql
+      port: 5432
+    internetEgress:
+      enabled: false
+      cidrs: []
+      ports: [443]

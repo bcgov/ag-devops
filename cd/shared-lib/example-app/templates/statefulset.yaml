@@ -1,0 +1,43 @@
+﻿{{/* StatefulSet for redis using define-based fragments */}}
+{{- if and .Values.redis .Values.redis.enabled (not (default false (.Values.redis).skip)) }}
+{{- $appGroup := include "example.appGroup" . -}}
+{{- $p := dict "Values" .Values -}}
+{{- $_ := set $p "ApplicationGroup" $appGroup -}}
+{{- $_ := set $p "Name" "redis" -}}
+{{- $_ := set $p "Registry" "docker.io/library" -}}
+{{- $_ := set $p "ModuleValues" .Values.redis }}
+{{- $_ := set $p "Ports" "redis.ports" -}}
+{{- $_ := set $p "Env" "redis.env" -}}
+{{- $_ := set $p "VolumeMounts" "redis.volumeMounts" -}}
+{{- $_ := set $p "VolumeClaims" "redis.volumeClaims" -}}
+{{- $_ := set $p "ServiceName" (printf "%s-redis" $appGroup) -}}
+{{ include "ag-template.statefulset" $p }}
+{{- end }}
+
+{{/* Fragments used by this statefulset */}}
+{{- define "redis.ports" }}
+- name: redis
+  containerPort: 6379
+  protocol: TCP
+{{- end }}
+
+{{- define "redis.volumeMounts" }}
+- name: data
+  mountPath: /data
+{{- end }}
+
+{{- define "redis.volumeClaims" }}
+- metadata:
+    name: data
+  spec:
+    accessModes: ["ReadWriteOnce"]
+    resources:
+      requests:
+        storage: 1Gi
+{{- end }}
+
+{{- define "redis.env" }}
+- name: TZ
+  value: "UTC"
+{{- end }}
+

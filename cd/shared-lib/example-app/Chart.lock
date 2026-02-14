@@ -1,0 +1,6 @@
+dependencies:
+- name: ag-helm-templates
+  repository: oci://ghcr.io/bcgov-c/helm
+  version: 1.2.0
+digest: sha256:b10530ee1c76612be5c402a99521081e989223f90f122f687234052c31ee48f9
+generated: "2026-02-12T19:26:47.4180094-05:00"
