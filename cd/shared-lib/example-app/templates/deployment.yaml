@@ -1,0 +1,51 @@
+{{/* Example: OpenFGA (API + Postgres datastore), disabled by default */}}
+{{- if and .Values.openfga .Values.openfga.enabled (not (default false (.Values.openfga).skip)) }}
+{{- $appGroup := include "example.appGroup" . -}}
+{{- $deploymentConfig := dict "Values" .Values -}}
+{{- $_ := set $deploymentConfig "ApplicationGroup" $appGroup -}}
+{{- $_ := set $deploymentConfig "Name" "openfga" -}}
+{{- $_ := set $deploymentConfig "Registry" "ghcr.io/openfga" -}}
+{{- $_ := set $deploymentConfig "ModuleValues" .Values.openfga -}}
+{{- $_ := set $deploymentConfig "Lang" "" -}}
+{{- $_ := set $deploymentConfig "Ports" "openfga.ports" -}}
+{{- $_ := set $deploymentConfig "Env" "openfga.env" -}}
+{{- $_ := set $deploymentConfig "Probes" "openfga.probes" -}}
+{{ include "ag-template.deployment" $deploymentConfig }}
+{{- end }}
+
+{{- define "openfga.ports" }}
+- name: http
+  containerPort: 8080
+  protocol: TCP
+{{- end }}
+
+{{- define "openfga.env" }}
+- name: OPENFGA_DATASTORE_ENGINE
+  value: postgres
+{{- $ds := (dig "datastore" (dict) .ModuleValues) -}}
+{{- $uri := (dig "uri" "" $ds) -}}
+{{- if $uri }}
+- name: OPENFGA_DATASTORE_URI
+  value: {{ $uri | quote }}
+{{- else }}
+{{- $secretName := (dig "existingSecret" "" $ds) -}}
+{{- if $secretName }}
+- name: OPENFGA_DATASTORE_URI
+  valueFrom:
+    secretKeyRef:
+      name: {{ $secretName }}
+      key: {{ (dig "uriKey" "uri" $ds) }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- define "openfga.probes" }}
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+{{- end }}

@@ -1,0 +1,81 @@
+﻿{{/* NetworkPolicy for openfga (API + Postgres), disabled by default */}}
+{{- if and .Values.openfga .Values.openfga.enabled .Values.openfga.networkPolicy .Values.openfga.networkPolicy.create (not (default false (.Values.openfga).skip)) }}
+{{- $appGroup := include "example.appGroup" . -}}
+{{- $np := dict "Values" .Values -}}
+{{- $_ := set $np "ModuleValues" .Values.openfga -}}
+{{- $_ := set $np "ApplicationGroup" $appGroup -}}
+{{- $_ := set $np "Name" "openfga" -}}
+{{- $_ := set $np "PolicyTypes" (list "Ingress" "Egress") -}}
+{{- $_ := set $np "IngressTemplate" "openfga.np.ingress" -}}
+{{- $_ := set $np "EgressTemplate" "openfga.np.egress" -}}
+{{- $_ := set $np "Namespace" $.Release.Namespace -}}
+{{ include "ag-template.networkpolicy" $np }}
+{{- end }}
+
+{{- define "openfga.np.ingress" }}
+- from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Namespace }}
+  ports:
+    - protocol: TCP
+      port: 80
+{{- end }}
+
+{{- define "openfga.np.egress" }}
+{{- $npv := (dig "networkPolicy" (dict) .ModuleValues) -}}
+{{- $pg := (dig "postgres" (dict) $npv) -}}
+{{- $pgNs := (dig "namespace" "" $pg) -}}
+{{- $pgLabels := (dig "podSelectorLabels" (dict "app.kubernetes.io/name" "postgresql") $pg) -}}
+{{- $pgPort := (dig "port" 5432 $pg) -}}
+- to:
+    - podSelector:
+        matchLabels:
+{{ toYaml $pgLabels | nindent 10 }}
+{{- if $pgNs }}
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ $pgNs }}
+{{- end }}
+  ports:
+    - protocol: TCP
+      port: {{ $pgPort }}
+{{- if (dig "internetEgress" "enabled" false $npv) }}
+- to:
+{{- range (dig "internetEgress" "cidrs" (list) $npv) }}
+    - ipBlock:
+        cidr: {{ . }}
+{{- end }}
+  ports:
+{{- range (dig "internetEgress" "ports" (list 443) $npv) }}
+    - protocol: TCP
+      port: {{ . }}
+{{- end }}
+{{- end }}
+
+{{- end }}
+
+---
+{{/* NetworkPolicy for redis (optional), disabled by default */}}
+{{- if and .Values.redis .Values.redis.enabled .Values.redis.networkPolicy .Values.redis.networkPolicy.create (not (default false (.Values.redis).skip)) }}
+{{- $appGroup := include "example.appGroup" . -}}
+{{- $np := dict "Values" .Values -}}
+{{- $_ := set $np "ModuleValues" .Values.redis -}}
+{{- $_ := set $np "ApplicationGroup" $appGroup -}}
+{{- $_ := set $np "Name" "redis" -}}
+{{- $_ := set $np "PolicyTypes" (list "Ingress") -}}
+{{- $_ := set $np "IngressTemplate" "redis.np.ingress" -}}
+{{- $_ := set $np "Namespace" $.Release.Namespace -}}
+{{ include "ag-template.networkpolicy" $np }}
+{{- end }}
+
+{{- define "redis.np.ingress" }}
+- from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Namespace }}
+  ports:
+    - protocol: TCP
+      port: 6379
+{{- end }}
+

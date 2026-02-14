@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: read
+      issues: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Semantic release (tag + GitHub Release)
+        id: semrel
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          semantic_version: 24
+          extra_plugins: |
+            @semantic-release/commit-analyzer
+            @semantic-release/release-notes-generator
+            @semantic-release/github
+            conventional-changelog-conventionalcommits
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The action installs JS tooling with npm; disable audit/fund output here.
+          # This does not affect your chart/repo security posture; it just avoids upstream noise.
+          NPM_CONFIG_AUDIT: "false"
+          NPM_CONFIG_FUND: "false"
+
+      - name: Setup Helm
+        if: steps.semrel.outputs.new_release_published == 'true'
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+
+      - name: Helm login to GHCR
+        if: steps.semrel.outputs.new_release_published == 'true'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Package and push chart to OCI
+        if: steps.semrel.outputs.new_release_published == 'true'
+        env:
+          CHART_DIR: ./cd/shared-lib/ag-helm
+          OCI_REGISTRY: ghcr.io/${{ github.repository_owner }}/helm
+          VERSION: ${{ steps.semrel.outputs.new_release_version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          helm lint "${CHART_DIR}"
+          helm package "${CHART_DIR}" -d dist --version "${VERSION}" --app-version "${VERSION}"
+          FILE=$(ls -t dist/*.tgz | head -n1)
+          echo "Pushing $FILE to oci://${OCI_REGISTRY}"
+          helm push "$FILE" "oci://${OCI_REGISTRY}"

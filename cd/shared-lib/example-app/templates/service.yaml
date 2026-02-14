@@ -1,0 +1,32 @@
+{{/* Service for openfga */}}
+{{- if and .Values.openfga .Values.openfga.enabled (not (default false (.Values.openfga).skip)) }}
+{{- $appGroup := include "example.appGroup" . -}}
+{{- $cfg := dict "Values" .Values "ApplicationGroup" $appGroup "Name" "openfga" "ServicePorts" "openfga.svc.ports" "Type" "ClusterIP" -}}
+{{ include "ag-template.service" $cfg }}
+{{- end }}
+---
+{{/* Headless service for redis only if .Values.redis exists and not skipped */}}
+{{- if and .Values.redis .Values.redis.enabled (not (default false (.Values.redis).skip)) }}
+{{- $appGroup := include "example.appGroup" . -}}
+{{- $headless := dict "Values" .Values "ApplicationGroup" $appGroup "Name" "redis" "Headless" true "ServicePorts" "redis.svc.ports" "IPFamilies" "headless.ipFamilies" -}}
+{{ include "ag-template.service" $headless }}
+{{- end }}
+
+{{/* Fragments used by this service template */}}
+{{- define "openfga.svc.ports" -}}
+- name: http
+  port: 80
+  protocol: TCP
+  targetPort: 8080
+{{- end -}}
+
+{{- define "redis.svc.ports" -}}
+- name: redis
+  port: 6379
+  protocol: TCP
+  targetPort: 6379
+{{- end -}}
+
+{{- define "headless.ipFamilies" -}}
+- IPv4
+{{- end -}}

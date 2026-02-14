@@ -1,0 +1,31 @@
+redis:
+  enabled: false
+  image:
+    tag: 7.2.4-alpine
+  networkPolicy:
+    create: false
+
+# Example: OpenFGA (authorization API) backed by PostgreSQL.
+# Disabled by default; see values-examples.yaml for a working example.
+openfga:
+  enabled: false
+  image:
+    tag: v1.5.2
+  dataClass: medium
+  replicas: 1
+  # datastore:
+  #   # Provide either a literal URI or a secret reference.
+  #   # Example URI: postgresql://user:pass@myapp-postgresql:5432/openfga?sslmode=disable
+  #   uri: ""
+  #   existingSecret: ""
+  #   uriKey: uri
+  networkPolicy:
+    create: false
+    postgres:
+      # Defaults match Bitnami's PostgreSQL chart labels in the same namespace.
+      namespace: ""
+      podSelectorLabels:
+        app.kubernetes.io/name: postgresql
+      port: 5432
+
+
