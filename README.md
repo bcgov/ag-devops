@@ -1,4 +1,4 @@
-# ag-devops
+# AG Reusable DevOps Template and Library
 
 Shared CI/CD templates and policy-as-code for application teams.
 
@@ -62,3 +62,4 @@ It is not an application. Your app repo consumes these assets.
 - Example consumer: [cd/shared-lib/example-app/](cd/shared-lib/example-app/)
 - Policy configs: [cd/policies/](cd/policies/)
 - Start with: [docs/CD.md](docs/CD.md).
+
