@@ -1,0 +1,38 @@
+# kube-linter configuration
+# Lints Kubernetes manifests for security and best practices
+
+checks:
+  # Include specific checks
+  include:
+    - "default-service-account"
+    - "no-read-only-root-fs"
+    - "privilege-escalation-container"
+    - "run-as-non-root"
+    - "required-label-owner"
+    - "no-extensions-v1beta"
+    - "deprecated-service-account-field"
+    - "env-var-secret"
+    - "required-annotation-email"
+    - "pdb-max-unavailable"
+    - "pdb-min-available"
+    - "latest-tag"
+    - "dangling-service"
+    - "mismatching-selector"
+    - "host-ipc"
+    - "host-network"
+    - "host-pid"
+    - "privileged-container"
+    - "sensitive-host-mounts"
+
+  # Exclude checks that conflict with our setup
+  exclude:
+    - "no-liveness-probe"
+    - "no-readiness-probe"
+    - "minimum-three-replicas"  # Using 2 replicas by design
+
+# Ignore specific resources
+ignore:
+  - name: kube-system
+    kind: Namespace
+  - name: kube-public
+    kind: Namespace
