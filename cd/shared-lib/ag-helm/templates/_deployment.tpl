@@ -156,9 +156,6 @@ spec:
       imagePullSecrets:
 {{ include $p.PullSecret $p | nindent 8 }}
       {{- end }}
-      {{- if or $mv.priorityClassName $p.PriorityClassName }}
-      priorityClassName: {{ default $p.PriorityClassName $mv.priorityClassName }}
-      {{- end }}
       terminationGracePeriodSeconds: {{ default 30 $mv.terminationGracePeriod }}
       {{- if $mv.affinity }}
       affinity:
