@@ -177,37 +177,6 @@ customChecks:
         kind:
           const: Deployment
 
-  dataClassLabelRequired:
-    successMessage: DataClass label is set
-    failureMessage: Pod must have DataClass label (Low/Medium/High)
-    category: Security
-    target: Deployment
-    schema:
-      "$schema": http://json-schema.org/draft-07/schema
-      type: object
-      required:
-        - spec
-      properties:
-        spec:
-          type: object
-          required:
-            - template
-          properties:
-            template:
-              type: object
-              required:
-                - metadata
-              properties:
-                metadata:
-                  type: object
-                  required:
-                    - labels
-                  properties:
-                    labels:
-                      type: object
-                      required:
-                        - DataClass
-
   routeAviAnnotationRequired:
     successMessage: AVI annotation is set
     failureMessage: Route must have aviinfrasetting.ako.vmware.com/name annotation
@@ -231,3 +200,58 @@ customChecks:
               type: object
               required:
                 - aviinfrasetting.ako.vmware.com/name
+  dataClassLabelRequired:
+    successMessage: DataClass label is set
+    failureMessage: Pod template must have DataClass label (Low/Medium/High)
+    category: Security
+    target: PodTemplate
+    schema:
+      "$schema": http://json-schema.org/draft-07/schema
+      type: object
+      required:
+        - metadata
+      properties:
+        metadata:
+          type: object
+          required:
+            - labels
+          properties:
+            labels:
+              type: object
+              required:
+                - DataClass
+              properties:
+                DataClass:
+                  type: string
+                  enum:
+                    - Low
+                    - Medium
+                    - High
+
+  dataClassLabelRequiredPod:
+    successMessage: DataClass label is set
+    failureMessage: Pod must have DataClass label (Low/Medium/High)
+    category: Security
+    target: Pod
+    schema:
+      "$schema": http://json-schema.org/draft-07/schema
+      type: object
+      required:
+        - metadata
+      properties:
+        metadata:
+          type: object
+          required:
+            - labels
+          properties:
+            labels:
+              type: object
+              required:
+                - DataClass
+              properties:
+                DataClass:
+                  type: string
+                  enum:
+                    - Low
+                    - Medium
+                    - High
