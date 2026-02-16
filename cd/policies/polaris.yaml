@@ -40,8 +40,11 @@ checks:
   deploymentMissingReplicas: danger
   priorityClassNotSet: warning
   networkPolicyRequired: danger
-  dataClassLabelRequired: danger
   routeAviAnnotationRequired: danger
+  # Require DataClass label (Low/Medium/High) on all workload pod templates
+  dataClassLabelRequired: danger
+  # Also require DataClass on standalone Pod manifests
+  dataClassLabelRequiredPod: danger
 
 exemptions:
   - namespace: kube-system
