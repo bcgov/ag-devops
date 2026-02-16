@@ -10,9 +10,10 @@
 
 This document is the **full reference** for consuming the CD assets in this repository:
 
-- Helm library chart: `cd/shared-lib/ag-helm/`
-- Example consumer chart: `cd/shared-lib/example-app/`
-- Policy configuration: `cd/policies/`
+- Helm library chart: `https://github.com/bcgov/ag-devops/tree/main/cd/shared-lib/ag-helm/`
+- Example consumer chart: `https://github.com/bcgov/ag-devops/tree/main/cd/shared-lib/example-app/`
+- OCI registry: `ghcr.io/bcgov/helm/ag-helm-templates:{version}`
+- Policy configuration: `https://github.com/bcgov/ag-devops/tree/main/cd/policies/`
 
 If you are looking for CI (GitHub Actions templates), see: `docs/CI.md`.
 
@@ -276,7 +277,7 @@ Important constraints enforced by policies in this repo:
 
 #### 1.9.1 Default deny vs allow rules
 
-- Kubernetes supports “default deny” NetworkPolicies (no ingress/egress rules). However, **this repo’s policy tooling expects explicit allow rules** for workloads (for example to prove intent and avoid accidental breakage).
+- Emerald supports “default deny” NetworkPolicies (no ingress/egress rules). However, **this repo’s policy tooling expects explicit allow rules** for workloads (for example to prove intent and avoid accidental breakage).
 - Treat default deny as an *implementation detail* of the cluster. For application charts in this repo, start with a minimal allow policy and then add only what your service needs.
 
 Rule of thumb:

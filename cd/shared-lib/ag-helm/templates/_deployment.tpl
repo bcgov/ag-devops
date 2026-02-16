@@ -4,6 +4,7 @@ Parameters (dict):
   .Values
   .ApplicationGroup (string)
   .Name (string)
+  .ImageName (string, optional; defaults to .Name)
   .Registry (string)
   .ModuleValues (dict)
     disabled (bool, optional)
@@ -14,6 +15,8 @@ Parameters (dict):
   .Lang (string; only 'dotnetcore' used for DD setup)
   .Ports (template name)
   .Env (template name)
+  .Command (template name)
+  .Args (template name)
   .Lifecycle (template name)
   .InitContainers (template name)
   .Probes (template name)
@@ -194,13 +197,28 @@ spec:
           {{ $img := get $mv "image" | default (dict) }}
           {{ $tag := get $img "tag" }}
           {{- $digest := get $img "digest" -}}
+          {{- $imageName := (default $p.Name $p.ImageName) -}}
           {{- if $digest }}
-          image: {{ printf "%s/%s@%s" $p.Registry $p.Name $digest }}
+          image: {{ printf "%s/%s@%s" $p.Registry $imageName $digest }}
           {{- else }}
-          image: {{ printf "%s/%s:%s" $p.Registry $p.Name (required "ModuleValues.image.tag is required when image.digest is not set" $tag) }}
+          image: {{ printf "%s/%s:%s" $p.Registry $imageName (required "ModuleValues.image.tag is required when image.digest is not set" $tag) }}
           {{- end }}
           {{ $pullPolicy := get $img "pullPolicy" }}
           imagePullPolicy: {{ default "IfNotPresent" $pullPolicy }}
+          {{- if $p.Command }}
+          command:
+{{ include $p.Command $p | nindent 12 }}
+          {{- else if $mv.command }}
+          command:
+{{ toYaml $mv.command | nindent 12 }}
+          {{- end }}
+          {{- if $p.Args }}
+          args:
+{{ include $p.Args $p | nindent 12 }}
+          {{- else if $mv.args }}
+          args:
+{{ toYaml $mv.args | nindent 12 }}
+          {{- end }}
           {{- if $p.Ports }}
           ports:
 {{ include $p.Ports $p | nindent 12 }}
