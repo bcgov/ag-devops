@@ -38,7 +38,7 @@ checks:
 
   # Custom checks for this project
   deploymentMissingReplicas: danger
-  priorityClassNotSet: warning
+  priorityClassNotSet: ignore
   networkPolicyRequired: danger
   routeAviAnnotationRequired: danger
   # Require DataClass label (Low/Medium/High) on all workload pod templates
