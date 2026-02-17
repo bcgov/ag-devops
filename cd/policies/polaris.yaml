@@ -45,6 +45,8 @@ checks:
   dataClassLabelRequired: danger
   # Also require DataClass on standalone Pod manifests
   dataClassLabelRequiredPod: danger
+  # For security reasons, we want to disallow LoadBalancer and NodePort services in our clusters. Polaris does not have a built-in check for this, so we define a custom one.
+  serviceTypeClusterIPOnly: danger
 
 exemptions:
   - namespace: kube-system
@@ -258,3 +260,20 @@ customChecks:
                     - Low
                     - Medium
                     - High
+
+  serviceTypeClusterIPOnly:
+    successMessage: "Service type is ClusterIP (or unset)."
+    failureMessage: "Service type must be ClusterIP (do not use LoadBalancer/NodePort)."
+    category: Security
+    target: Service
+    schema:
+      "$schema": http://json-schema.org/draft-07/schema#
+      type: object
+      properties:
+        spec:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - ClusterIP
